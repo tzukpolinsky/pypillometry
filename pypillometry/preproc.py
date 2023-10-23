@@ -11,7 +11,7 @@ import pylab as plt
 from .convenience import *
 
 
-def smooth_window(x,window_len=11,window='hanning'):
+def smooth_window(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
     
     This method is based on the convolution of a scaled window with the signal.
@@ -39,23 +39,20 @@ def smooth_window(x,window_len=11,window='hanning'):
     if x.size < window_len:
         raise ValueError("Input vector needs to be bigger than window size.")
 
-
-    if window_len<3:
+    if window_len < 3:
         return x
-
 
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
         raise ValueError("Window should be one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
-
-    s=np.r_[x[window_len-1:0:-1],x,x[-2:-window_len-1:-1]]
-    if window == 'flat': #moving average
-        w=np.ones(window_len,'d')
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
     else:
-        w=eval('np.'+window+'(window_len)')
+        w = eval('np.' + window + '(window_len)')
 
-    y=np.convolve(w/w.sum(),s,mode='same')
-    return y[(window_len-1):(-window_len+1)]
+    y = np.convolve(w / w.sum(), s, mode='same')
+    return y[(window_len - 1):(-window_len + 1)]
 
 
 def detect_blinks_velocity(sy, smooth_winsize, vel_onset, vel_offset, min_onset_len=5, min_offset_len=5):
@@ -80,44 +77,44 @@ def detect_blinks_velocity(sy, smooth_winsize, vel_onset, vel_offset, min_onset_
         minimum number of consecutive samples that cross the threshold to detect offset
     """
     # generate smoothed signal and velocity-profile
-    sym=smooth_window(sy, smooth_winsize, "hanning")
-    vel=np.r_[0,np.diff(sym)] 
-    n=sym.size
+    sym = smooth_window(sy, smooth_winsize, "hanning")
+    vel = np.r_[0, np.diff(sym)]
+    n = sym.size
 
     # find first negative vel-crossing 
-    onsets=np.where(vel<=vel_onset)[0]
-    onsets_ixx=np.r_[np.diff(onsets),10]>1
-    onsets_len=np.diff(np.r_[0,np.where(onsets_ixx)[0]])
-    onsets=onsets[onsets_ixx]
-    onsets=onsets[onsets_len>min_onset_len]
+    onsets = np.where(vel <= vel_onset)[0]
+    onsets_ixx = np.r_[np.diff(onsets), 10] > 1
+    onsets_len = np.diff(np.r_[0, np.where(onsets_ixx)[0]])
+    onsets = onsets[onsets_ixx]
+    onsets = onsets[onsets_len > min_onset_len]
 
     ## offset finding
-    offsets=np.where(vel>=vel_offset)[0]
-    offsets_ixx=np.r_[10,np.diff(offsets)]>1
-    offsets_len=np.diff(np.r_[np.where(offsets_ixx)[0],offsets.size])
-    offsets=offsets[offsets_ixx]
-    offsets=offsets[offsets_len>min_offset_len]
-    
-    
+    offsets = np.where(vel >= vel_offset)[0]
+    offsets_ixx = np.r_[10, np.diff(offsets)] > 1
+    offsets_len = np.diff(np.r_[np.where(offsets_ixx)[0], offsets.size])
+    offsets = offsets[offsets_ixx]
+    offsets = offsets[offsets_len > min_offset_len]
+
     ## find corresponding on- and off-sets
-    blinks=[]
-    on=onsets[0]
+    blinks = []
+    on = onsets[0]
     while on is not None:
-        offs=offsets[offsets>on]
-        off=offs[0] if offs.size>0 else n
-        blinks.append([on,off])
-        ons=onsets[onsets>off]
-        on=ons[0] if ons.size>0 else None
-        
+        offs = offsets[offsets > on]
+        off = offs[0] if offs.size > 0 else n
+        blinks.append([on, off])
+        ons = onsets[onsets > off]
+        on = ons[0] if ons.size > 0 else None
+
     ## if on- off-sets fall in a zero-region, grow until first non-zero sample
-    blinks2=[]
-    for (on,off) in blinks:
-        while(on>0 and sy[on]==0):
-            on-=1
-        while(off<n-1 and sy[off]==0):
-            off+=1
-        blinks2.append([on,off])
+    blinks2 = []
+    for (on, off) in blinks:
+        while (on > 0 and sy[on] == 0):
+            on -= 1
+        while (off < n - 1 and sy[off] == 0):
+            off += 1
+        blinks2.append([on, off])
     return np.array(blinks2)
+
 
 def detect_blinks_zero(sy, min_duration, blink_val=0):
     """
@@ -139,23 +136,26 @@ def detect_blinks_zero(sy, min_duration, blink_val=0):
     -------
     np.array (nblinks x 2) containing the indices of the start/end of the blinks
     """
-    x=np.r_[0, np.diff((sy==blink_val).astype(int))]
-    starts=np.where(x==1)[0]
-    ends=np.where(x==-1)[0]-1
-    if sy[0]==blink_val: ## first value missing?
-        starts=np.r_[0,starts]    
-    if ends.size!=starts.size: 
+    x = np.r_[0, np.diff((sy == blink_val).astype(int))]
+    starts = np.where(x == 1)[0]
+    ends = np.where(x == -1)[0] - 1
+    if len(ends) <= 0:
+        #print("no blinks")
+        return np.array([])
+    if sy[0] == blink_val:  ## first value missing?
+        starts = np.r_[0, starts]
+    if ends.size != starts.size:
         ## is the first start earlier than the first end?
-        if starts[0]>ends[0]:
-            ends=ends[1:] # drop first end
+        if starts[0] > ends[0]:
+            ends = ends[1:]  # drop first end
         else:
-            starts=starts[:-1] # drop last start
-    if ends[-1]==x.size:
-        ends[-1]-=1
-    blinks=[ [start,end] for start,end in zip(starts,ends) if end-start>=min_duration]
+            starts = starts[:-1]  # drop last start
+    if ends[-1] == x.size:
+        ends[-1] -= 1
+    blinks = [[start, end] for start, end in zip(starts, ends) if end - start >= min_duration]
     return np.array(blinks)
-    
-    
+
+
 def blink_onsets_mahot(sy, blinks, smooth_winsize, vel_onset, vel_offset, margin, blinkwindow):
     """
     Method for finding the on- and offset for each blink (excluding transient).
@@ -179,38 +179,38 @@ def blink_onsets_mahot(sy, blinks, smooth_winsize, vel_onset, vel_offset, margin
         how much time before and after each blink to include (in sampling points)        
     """
     # generate smoothed signal and velocity-profile
-    sym=smooth_window(sy, smooth_winsize, "hanning")
-    vel=np.r_[0,np.diff(sym)] 
-    blinkwindow_ix=blinkwindow
-    n=sym.size
-    
-    newblinks=[]
-    for ix,(start,end) in enumerate(blinks):                
-        winstart,winend=max(0,start-blinkwindow_ix), min(end+blinkwindow_ix, n)
-        slic=slice(winstart, winend) #start-blinkwindow_ix, end+blinkwindow_ix)
-        winlength=vel[slic].size
+    sym = smooth_window(sy, smooth_winsize, "hanning")
+    vel = np.r_[0, np.diff(sym)]
+    blinkwindow_ix = blinkwindow
+    n = sym.size
 
-        onsets=np.where(vel[slic]<=vel_onset)[0]
-        offsets=np.where(vel[slic]>=vel_offset)[0]
-        if onsets.size==0 or offsets.size==0:
+    newblinks = []
+    for ix, (start, end) in enumerate(blinks):
+        winstart, winend = max(0, start - blinkwindow_ix), min(end + blinkwindow_ix, n)
+        slic = slice(winstart, winend)  # start-blinkwindow_ix, end+blinkwindow_ix)
+        winlength = vel[slic].size
+
+        onsets = np.where(vel[slic] <= vel_onset)[0]
+        offsets = np.where(vel[slic] >= vel_offset)[0]
+        if onsets.size == 0 or offsets.size == 0:
             continue
 
         ## onsets are in "local" indices of the windows, start-end of blink global
-        startl,endl=blinkwindow_ix if winstart>0 else start,end-start+blinkwindow_ix
+        startl, endl = blinkwindow_ix if winstart > 0 else start, end - start + blinkwindow_ix
 
         # find vel-crossing next to start of blink and move back to start of that crossing
-        onset_ix=np.argmin(np.abs((onsets-startl<=0)*(onsets-startl)))
-        while(onsets[onset_ix-1]+1==onsets[onset_ix]):
-            onset_ix-=1
-        onset=onsets[onset_ix]
-        onset=max(0, onset-margin[0]) # avoid overflow to the left
+        onset_ix = np.argmin(np.abs((onsets - startl <= 0) * (onsets - startl)))
+        while (onsets[onset_ix - 1] + 1 == onsets[onset_ix]):
+            onset_ix -= 1
+        onset = onsets[onset_ix]
+        onset = max(0, onset - margin[0])  # avoid overflow to the left
 
         # find start of "reversal period" and move forward until it drops back
-        offset_ix=np.argmin(np.abs(((offsets-endl<0)*np.iinfo(int).max)+(offsets-endl)))
-        while(offset_ix<(len(offsets)-1) and offsets[offset_ix+1]-1==offsets[offset_ix]):
-            offset_ix+=1        
-        offset=offsets[offset_ix]
-        offset=min(winlength-1, offset+margin[1]) # avoid overflow to the right
-        newblinks.append( [onset+winstart,offset+winstart] )
-    
-    return np.array(newblinks)    
+        offset_ix = np.argmin(np.abs(((offsets - endl < 0) * np.iinfo(int).max) + (offsets - endl)))
+        while (offset_ix < (len(offsets) - 1) and offsets[offset_ix + 1] - 1 == offsets[offset_ix]):
+            offset_ix += 1
+        offset = offsets[offset_ix]
+        offset = min(winlength - 1, offset + margin[1])  # avoid overflow to the right
+        newblinks.append([onset + winstart, offset + winstart])
+
+    return np.array(newblinks)
