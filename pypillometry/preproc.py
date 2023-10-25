@@ -66,7 +66,7 @@ def detect_blinks_velocity(sy, smooth_winsize, vel_onset, vel_offset, min_onset_
     sy: np.array
         pupil data
     smooth_winsize: int (odd)
-        size of the Hanning-window in sampling points
+        size of the Hanning-window in sampling points, if -1 than the smoothing is skiped
     vel_onset: float
         velocity-threshold to detect the onset of the blink
     vel_offset: float
@@ -77,7 +77,10 @@ def detect_blinks_velocity(sy, smooth_winsize, vel_onset, vel_offset, min_onset_
         minimum number of consecutive samples that cross the threshold to detect offset
     """
     # generate smoothed signal and velocity-profile
-    sym = smooth_window(sy, smooth_winsize, "hanning")
+    if smooth_winsize > -1:
+        sym = smooth_window(sy, smooth_winsize, "hanning")
+    else:
+        sym = sy
     vel = np.r_[0, np.diff(sym)]
     n = sym.size
 
@@ -140,7 +143,7 @@ def detect_blinks_zero(sy, min_duration, blink_val=0):
     starts = np.where(x == 1)[0]
     ends = np.where(x == -1)[0] - 1
     if len(ends) <= 0:
-        #print("no blinks")
+        # print("no blinks")
         return np.array([])
     if sy[0] == blink_val:  ## first value missing?
         starts = np.r_[0, starts]
