@@ -4,7 +4,6 @@ pupildata.py
 
 Main object-oriented entry point
 """
-from . import pd_read_pickle
 from .convenience import *
 from .baseline import *
 from .fakedata import *
